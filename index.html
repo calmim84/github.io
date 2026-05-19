@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Oracle SQL Hint Tuning Reference</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Oracle SQL Tuning</p>
+        <h1>SQL Hint Reference</h1>
+      </div>
+      <div class="header-actions">
+        <button id="add-hint" class="ghost-button" type="button">새 힌트 추가</button>
+        <button id="export-json" class="ghost-button" type="button">JSON 내보내기</button>
+        <button id="import-json" class="ghost-button" type="button">JSON 가져오기</button>
+        <input id="import-file" class="hidden-file" type="file" accept="application/json,.json" />
+        <button id="copy-current" class="ghost-button" type="button">힌트 복사</button>
+        <button id="copy-example" class="primary-button" type="button">예시 복사</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="search-panel" aria-label="힌트 검색 및 필터">
+        <div class="search-box">
+          <label for="search-input">검색</label>
+          <input
+            id="search-input"
+            type="search"
+            autocomplete="off"
+            placeholder="예: INDEX, USE_NL, 병렬, 조인 순서"
+          />
+        </div>
+
+        <div class="quick-stats" aria-label="힌트 통계">
+          <span><strong id="visible-count">0</strong>개 표시</span>
+          <span><strong id="total-count">0</strong>개 수록</span>
+        </div>
+
+        <div class="filter-block">
+          <h2>카테고리</h2>
+          <div id="category-filters" class="chip-list"></div>
+        </div>
+
+        <div class="filter-block">
+          <h2>활용 시나리오</h2>
+          <div id="scenario-list" class="scenario-list"></div>
+        </div>
+
+        <div class="note-band">
+          <h2>힌트 적용 확인</h2>
+          <pre><code>SELECT *
+FROM TABLE(
+  DBMS_XPLAN.DISPLAY_CURSOR(
+    NULL, NULL, 'ALLSTATS LAST +HINT_REPORT'
+  )
+);</code></pre>
+        </div>
+      </section>
+
+      <section class="results-panel" aria-label="힌트 목록">
+        <div class="results-toolbar">
+          <div>
+            <p class="eyebrow">Reference List</p>
+            <h2 id="results-title">전체 힌트</h2>
+          </div>
+          <select id="sort-select" aria-label="정렬">
+            <option value="name">이름순</option>
+            <option value="category">카테고리순</option>
+          </select>
+        </div>
+        <div id="hint-list" class="hint-list"></div>
+      </section>
+
+      <aside class="detail-panel" aria-label="선택한 힌트 상세">
+        <div class="detail-head">
+          <div>
+            <p id="detail-category" class="eyebrow">Category</p>
+            <h2 id="detail-name">힌트를 선택하세요</h2>
+          </div>
+          <span id="detail-badge" class="badge">Reference</span>
+        </div>
+
+        <div class="detail-actions">
+          <button id="edit-current" class="ghost-button compact-button" type="button">현재 힌트 수정</button>
+          <button id="reset-current" class="ghost-button compact-button danger-button" type="button" hidden>
+            사용자 수정 삭제
+          </button>
+        </div>
+
+        <p id="detail-summary" class="summary-text">
+          왼쪽 목록에서 힌트를 선택하면 의미, 문법, 예시, 주의점을 볼 수 있습니다.
+        </p>
+
+        <div class="detail-grid">
+          <section>
+            <h3>문법</h3>
+            <pre><code id="detail-syntax">/*+ HINT */</code></pre>
+          </section>
+          <section>
+            <h3>사용 포인트</h3>
+            <ul id="detail-points" class="plain-list"></ul>
+          </section>
+        </div>
+
+        <section>
+          <h3>예시</h3>
+          <pre><code id="detail-example">SELECT /*+ ... */ * FROM ...;</code></pre>
+        </section>
+
+        <section>
+          <h3>주의점</h3>
+          <p id="detail-caution" class="caution-text"></p>
+        </section>
+
+        <section>
+          <h3>관련 힌트</h3>
+          <div id="related-hints" class="related-list"></div>
+        </section>
+
+        <section id="editor-card" class="editor-card" hidden>
+          <div class="editor-title-row">
+            <div>
+              <p class="eyebrow">Custom Hint</p>
+              <h3 id="editor-title">힌트 작성</h3>
+            </div>
+            <button id="cancel-edit" class="ghost-button compact-button" type="button">닫기</button>
+          </div>
+
+          <form id="hint-form" class="hint-form">
+            <div class="form-grid">
+              <label>
+                힌트명
+                <input id="edit-name" name="name" type="text" required placeholder="예: MY_HINT" />
+              </label>
+              <label>
+                카테고리
+                <select id="edit-category" name="category"></select>
+              </label>
+            </div>
+
+            <label>
+              의미
+              <textarea id="edit-summary" name="summary" rows="2" placeholder="힌트의 목적을 짧게 적어주세요."></textarea>
+            </label>
+
+            <label>
+              문법
+              <textarea id="edit-syntax" name="syntax" rows="2" required placeholder="/*+ HINT(table_alias) */"></textarea>
+            </label>
+
+            <label>
+              사용 포인트
+              <textarea
+                id="edit-points"
+                name="points"
+                rows="4"
+                placeholder="한 줄에 하나씩 입력합니다."
+              ></textarea>
+            </label>
+
+            <label>
+              예시
+              <textarea
+                id="edit-example"
+                name="example"
+                rows="7"
+                required
+                placeholder="SELECT /*+ ... */ * FROM ...;"
+              ></textarea>
+            </label>
+
+            <label>
+              주의점
+              <textarea id="edit-caution" name="caution" rows="3" placeholder="적용 전 확인할 위험이나 조건"></textarea>
+            </label>
+
+            <label>
+              관련 힌트
+              <input id="edit-related" name="related" type="text" placeholder="예: INDEX, FULL, LEADING" />
+            </label>
+
+            <div class="form-actions">
+              <p id="editor-status" class="editor-status" role="status"></p>
+              <button class="primary-button" type="submit">저장</button>
+            </div>
+          </form>
+        </section>
+      </aside>
+    </main>
+
+    <section class="checklist-band" aria-label="SQL 힌트 사용 체크리스트">
+      <div>
+        <p class="eyebrow">Tuning Checklist</p>
+        <h2>힌트를 넣기 전후로 확인할 것</h2>
+      </div>
+      <ul>
+        <li>테이블 별칭을 썼다면 힌트에도 반드시 별칭을 사용합니다.</li>
+        <li>통계 정보가 오래되었거나 편향되었으면 힌트보다 통계 보정이 먼저입니다.</li>
+        <li>실행계획은 예상 계획과 실제 실행 통계가 함께 보이는 형식으로 확인합니다.</li>
+        <li>힌트가 무시되면 오타, 잘못된 쿼리 블록, 상충 힌트, 불가능한 접근 경로를 의심합니다.</li>
+        <li>운영 적용 전 바인드 값, 데이터 분포, 병렬도, 동시 실행 부하를 함께 봅니다.</li>
+      </ul>
+    </section>
+
+    <template id="hint-card-template">
+      <button class="hint-card" type="button">
+        <span class="hint-card-top">
+          <strong class="hint-card-name"></strong>
+          <span class="hint-card-category"></span>
+        </span>
+        <span class="hint-card-summary"></span>
+      </button>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
